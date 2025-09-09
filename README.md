@@ -23,7 +23,6 @@ graph TB
         subgraph "Security"
             WAF[WAF] --> ALB
             IAM[IAM Roles] --> ECS
-            SG[Security Groups]
         end
         
         subgraph "Storage"
