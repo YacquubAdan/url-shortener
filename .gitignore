@@ -1,0 +1,22 @@
+
+.env
+.secrets
+
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+.terraform/
+.terraform.lock.hcl
+terraform.tfplan
+terraform.tfplan.*
+crash.log
+crash.*.log
+
+# AWS
+.aws/
+
+# Docker
+.dockerignore
+Dockerfile.*
+
