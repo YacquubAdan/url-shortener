@@ -3,6 +3,6 @@ locals {
   bucket              = "yacquub-urlshortener-backend"
   project_prefix      = "yacquub"
   ecs_cluster_name    = "yacquub-app-cluster"
-  ecr_repository_name = "url-shortner"
-  dynamodb_table_name = "yacquub-url-shortner-table"
+  ecr_repository_name = "url-shortener"
+  dynamodb_table_name = "yacquub-url-shortener-table"
 }

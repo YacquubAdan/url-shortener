@@ -53,13 +53,6 @@ resource "aws_ecs_task_definition" "app_td" {
           "awslogs-stream-prefix" = "ecs"
         }
       }
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:${var.container_port}/healthz || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
     }
   ])
 }
@@ -71,20 +64,18 @@ resource "aws_ecs_service" "app_service" {
   launch_type     = "FARGATE"
   task_definition = aws_ecs_task_definition.app_td.arn
 
-
-  deployment_controller {
-    type = "ECS"
-  }
   load_balancer {
-    target_group_arn = var.target_group_arn
+    target_group_arn = var.blue_target_group_arn 
     container_name   = var.container_name
     container_port   = var.container_port
   }
 
+  deployment_controller {
+    type = "CODE_DEPLOY"
+  }
   network_configuration {
     subnets          = values(var.private_subnet_ids)
     security_groups  = [var.ecs_sg_id]
     assign_public_ip = false
   }
-
 }

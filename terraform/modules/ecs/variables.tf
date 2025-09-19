@@ -9,9 +9,9 @@ variable "ecs_sg_id" {
 
 }
 
-variable "target_group_arn" {
+variable "blue_target_group_arn" {
   type        = string
-  description = "Target group ARN"
+  description = "Blue target group ARN"
 }
 
 variable "task_role_arn" {
@@ -58,5 +58,7 @@ variable "image_tag" {
 variable "ecr_repository_name" {
   type        = string
   description = "ecr repo name"
-
 }
+
+
+
