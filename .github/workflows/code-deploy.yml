@@ -1,0 +1,143 @@
+name: "Build Image and Deploy to ECS"
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION:  ${{ vars.REGION }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}  
+  ECR_REPOSITORY:  ${{ vars. ECR_REPOSITORY }}  
+  IMAGE_TAG:  ${{ vars.IMAGE_TAG }}
+  CONTAINER_NAME: ${{ vars.CONTAINER_NAME }} 
+  CONTAINER_PORT:  ${{ vars.CONTAINER_PORT }}  
+  SERVICE: ${{ vars.SERVICE }} 
+  CLUSTER: ${{ vars.CLUSTER }}  
+  TASK_DEFINITION:  ${{ vars.TASK_DEFINITION }} 
+  CODEDEPLOY_APP:  ${{ vars.CODEDEPLOY_APP }} 
+  CODEDEPLOY_GROUP: ${{ vars.CODEDEPLOY_GROUP }}
+
+jobs:
+  build:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build and Push Docker Image
+        id: build-image
+        working-directory: ./app
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}"
+          echo "Building image: $IMAGE_URI"
+          docker build -t "$IMAGE_URI" .
+          echo "Pushing image to ECR..."
+          docker push "$IMAGE_URI"
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+      
+      - name: Build Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** ${{ steps.build-image.outputs.image }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** ${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** ${{ env.ECR_REPOSITORY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** Build Successful" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to ECS
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Download Task Definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${{ env.TASK_DEFINITION }}" \
+            --region "${{ env.AWS_REGION }}" \
+            --query taskDefinition > task-definition.json
+      
+      - name: Update Task Definition with New Image
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ needs.build.outputs.image }}
+      
+      - name: Create AppSpec File
+        run: |
+          mkdir -p ./.aws
+          cat > ./.aws/appspec.json <<EOF
+          {
+            "version": 1.0,
+            "Resources": [{
+              "TargetService": {
+                "Type": "AWS::ECS::Service",
+                "Properties": {
+                  "TaskDefinition": "task-definition.json",
+                  "LoadBalancerInfo": {
+                    "ContainerName": "${{ env.CONTAINER_NAME }}",
+                    "ContainerPort": ${{ env.CONTAINER_PORT }}
+                  }
+                }
+              }
+            }]
+          }
+          EOF
+      
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.SERVICE }}
+          cluster: ${{ env.CLUSTER }}
+          wait-for-service-stability: true
+          codedeploy-appspec: ./.aws/appspec.json
+          codedeploy-application: ${{ env.CODEDEPLOY_APP }}
+          codedeploy-deployment-group: ${{ env.CODEDEPLOY_GROUP }}
+      
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Deployed:** ${{ needs.build.outputs.image }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster:** ${{ env.CLUSTER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service:** ${{ env.SERVICE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Task Definition:** ${{ env.TASK_DEFINITION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CodeDeploy App:** ${{ env.CODEDEPLOY_APP }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment Group:** ${{ env.CODEDEPLOY_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ✅ Successfully Deployed" >> $GITHUB_STEP_SUMMARY
