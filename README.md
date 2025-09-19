@@ -71,3 +71,13 @@ graph TB
 - `POST /shorten`: Creates a shortened URL from the original URL
 - `GET /{short_id}`: Redirects to the original URL using the short ID
 - `GET /healthz`: Health check endpoint
+
+
+## Examples
+
+```bash
+    curl -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://google.com"}' \
+    https://your-domain/shorten
+```
