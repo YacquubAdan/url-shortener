@@ -88,7 +88,9 @@ jobs:
             --task-definition "${{ env.TASK_DEFINITION }}" \
             --region "${{ env.AWS_REGION }}" \
             --query taskDefinition > task-definition.json
-      
+      - name: Debug - Check image output
+        run: | 
+          echo "Image from build job: ${{ needs.build.outputs.image }}"
       - name: Update Task Definition with New Image
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
