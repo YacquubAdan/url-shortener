@@ -8,7 +8,7 @@ app = FastAPI()
 
 @app.get("/")
 def home_page():
-    return {"home": "hello"}
+    return {"home": "hello v2"}
 
 @app.get("/healthz")
 def health_check():
