@@ -1,5 +1,4 @@
-name: Terraform Deploy
-
+name: Deploy Terraform Config
 on:
   push:
     branches: [ main ]
