@@ -1,4 +1,4 @@
-name: "Deploy Terraform Config"
+name: "Terraform Plan Pipeline"
 on:
   pull_request:
     branches: [ main ]
