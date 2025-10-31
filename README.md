@@ -2,6 +2,8 @@
 
 A serverless URL shortener built with FastAPI and deployed on AWS infrastructure.
 
+![architecture](images/app.png)
+
 ## Architecture
 
 ```mermaid
@@ -52,6 +54,9 @@ graph TB
     class App,POST,GET,Health app
     class User user
 ```
+
+![architecture](images/Url-shortner.jpeg)
+
 
 ## Components
 
